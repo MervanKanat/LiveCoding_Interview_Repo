@@ -18,42 +18,31 @@ df = pd.DataFrame(data)
 
 console = Console()
 
-# Function definitions (as before)
 def first_order_hobby_toys(df):
+    customer_order_counts = df.groupby('customer_id').size()
+    customers_with_multiple_orders = customer_order_counts[customer_order_counts >= 2].index
     first_orders = df.sort_values('order_date').groupby('customer_id').first().reset_index()
-    customers_with_multiple_orders = df.groupby('customer_id').size()[df.groupby('customer_id').size() >= 2].index
     result = first_orders[
         (first_orders['customer_id'].isin(customers_with_multiple_orders)) &
         (first_orders['category'] == 'hobby&toys')
-    ]['customer_id']
-    return 1 if not result.empty else 0
+    ]
+    return result, customers_with_multiple_orders
 
 def above_average_basket(df):
     customer_avg_basket = df.groupby('customer_id')['amount'].mean()
     overall_avg_basket = customer_avg_basket.mean()
-    above_average_customers = customer_avg_basket[customer_avg_basket > overall_avg_basket]
     customer_labels = (customer_avg_basket > overall_avg_basket).astype(int)
-    return 1 if not above_average_customers.empty else 0, overall_avg_basket, customer_labels
+    return overall_avg_basket, customer_labels
 
-# Create and display data structure table
-table = Table(title="Data Structure")
-table.add_column("Column Name", style="cyan")
-table.add_column("Description", style="magenta")
+# Display the data
+data_table = Table(title="Sample Data")
+for column in df.columns:
+    data_table.add_column(column, style="cyan")
 
-columns = [
-    ("customer_id", "Unique identifier for each customer"),
-    ("order_date", "Date of the order"),
-    ("order_id", "Unique identifier for each order"),
-    ("product_id", "Unique identifier for each product"),
-    ("quantity", "Number of items ordered"),
-    ("amount", "Total amount of the order"),
-    ("category", "Product category")
-]
+for _, row in df.iterrows():
+    data_table.add_row(*[str(value) for value in row])
 
-for col, desc in columns:
-    table.add_row(col, desc)
-
-console.print(table)
+console.print(data_table)
 
 # Display questions and results
 console.print(Panel.fit(
@@ -61,16 +50,36 @@ console.print(Panel.fit(
     title="Question 1"
 ))
 
-result_q1 = first_order_hobby_toys(df)
-console.print(f"[bold blue]Result:[/bold blue] {result_q1}")
+result_q1, multiple_orders = first_order_hobby_toys(df)
+q1_table = Table(title="Question 1 Detailed Results")
+q1_table.add_column("Customer ID", style="cyan")
+q1_table.add_column("Multiple Orders", style="magenta")
+q1_table.add_column("First Order Category", style="yellow")
+q1_table.add_column("Condition Met", style="green")
+
+for customer_id in df['customer_id'].unique():
+    has_multiple_orders = "Yes" if customer_id in multiple_orders else "No"
+    first_order = df[df['customer_id'] == customer_id].sort_values('order_date').iloc[0]
+    first_category = first_order['category']
+    condition_met = "Yes" if customer_id in result_q1['customer_id'].values else "No"
+    
+    row_style = "bold green" if condition_met == "Yes" else "dim red"
+    q1_table.add_row(
+        str(customer_id),
+        has_multiple_orders,
+        first_category,
+        condition_met,
+        style=row_style
+    )
+
+console.print(q1_table)
 
 console.print(Panel.fit(
     "[bold green]Question 2:[/bold green] Create a customer label for customers whose basket average is above the arithmetic mean of all customers' basket averages. The label should be 1 if the condition is met, 0 if not. (basket = average order amount)",
     title="Question 2"
 ))
 
-result_q2, avg_basket, customer_labels = above_average_basket(df)
-console.print(f"[bold blue]Result:[/bold blue] {result_q2}")
+avg_basket, customer_labels = above_average_basket(df)
 console.print(f"[bold blue]Overall average basket amount:[/bold blue] {avg_basket:.2f} TL")
 
 # Create and display customer results table
